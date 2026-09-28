@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#e8ebe4">
+<title>TO DO</title>
+<style>
+:root{--bg:#e8ebe4;--card:#f8f9f5;--ink:#14181c;--mut:#5d6660;--line:#c9cfc4;--ac:#1f4bd8;--warn:#b86b00;--warnbg:#fff1d6;--hot:#d7263d}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 Pretendard,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;display:flex;flex-direction:column;height:100dvh;padding-top:env(safe-area-inset-top)}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+
+#top{flex:none;max-height:34dvh;overflow:auto;padding:10px 14px 0;display:grid;gap:8px}
+.msg{border-radius:10px;padding:9px 12px;font-size:13px;line-height:1.45;border:1px solid var(--line);background:var(--card)}
+.msg b{display:block;font-size:12px;color:var(--mut);margin-bottom:2px}
+.msg.base div+div{margin-top:1px}
+.msg.warn{background:var(--warnbg);border-color:var(--warn)}
+.msg.warn b{color:var(--warn)}
+.msg.hot{background:var(--hot);border-color:var(--hot);color:#fff;font-weight:700;font-size:14px;animation:pulse 2.4s ease-in-out infinite}
+.msg.hot b{color:#fff;font-size:15px}
+@keyframes pulse{50%{box-shadow:0 0 0 5px rgba(215,38,61,.25)}}
+@media (prefers-reduced-motion:reduce){.msg.hot{animation:none}}
+
+main{flex:1;min-height:0;overflow:auto;padding:18px 16px;display:flex;flex-direction:column;justify-content:center;gap:16px}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ink);transition:width .3s}
+.meta{display:flex;justify-content:space-between;font-size:14px;color:var(--mut)}
+.task{font-size:clamp(28px,8.5vw,40px);line-height:1.2;font-weight:800;letter-spacing:-.02em;word-break:keep-all}
+.sub{font-size:16px;color:var(--mut);word-break:keep-all}
+.done-btn{width:100%;min-height:68px;border-radius:14px;background:var(--ac);color:#fff;font-size:20px;font-weight:800}
+.done-btn:active{transform:scale(.98)}
+.ghost{align-self:flex-start;color:var(--mut);font-size:14px;padding:8px 0}
+.choices{display:grid;gap:10px}
+.choice{text-align:left;background:var(--card);border:2px solid var(--ink);border-radius:14px;padding:16px}
+.choice strong{display:block;font-size:20px}
+.choice span{font-size:14px;color:var(--mut)}
+.detail{background:var(--card);border:2px solid var(--ink);border-radius:14px;padding:16px}
+.detail li{margin:8px 0 8px 20px;font-size:17px}
+.row{display:grid;grid-template-columns:1fr 2fr;gap:10px}
+.row .ghost-b{min-height:68px;border-radius:14px;border:2px solid var(--ink);font-weight:700}
+
+#memo{flex:none;max-height:38dvh;display:flex;flex-direction:column;background:var(--card);border-top:2px solid var(--ink);padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
+#memo h2{font-size:14px;margin-bottom:6px}
+#list{list-style:none;padding:0;overflow:auto;flex:1;min-height:40px}
+#list li{display:flex;align-items:center;gap:8px;padding:2px 0}
+#list input[type=checkbox]{width:22px;height:22px;accent-color:var(--ac);flex:none}
+#list input[type=text]{flex:1;min-width:0;border:0;background:transparent;padding:8px 0;border-bottom:1px solid var(--line)}
+#list li.d input[type=text]{text-decoration:line-through;color:var(--mut)}
+#list .x{width:36px;height:36px;color:var(--mut);font-size:20px}
+#add{display:flex;gap:8px;margin-top:8px}
+#add input{flex:1;min-width:0;border:2px solid var(--ink);border-radius:10px;padding:10px 12px;background:#fff}
+#add button{padding:0 16px;border-radius:10px;background:var(--ink);color:#fff;font-weight:700}
+.empty{color:var(--mut);font-size:14px;padding:6px 0}
+</style>
+</head>
+<body>
+<div id="top" aria-live="polite"></div>
+<main id="main"></main>
+<section id="memo">
+  <h2>메모 · 수시로 생기는 일정</h2>
+  <ul id="list"></ul>
+  <div id="add"><input id="newMemo" type="text" placeholder="일정·할 일 추가" enterkeyhint="done"><button id="addBtn">추가</button></div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+/* ───────── 설정: Supabase 값 넣기 (비워두면 이 기기 localStorage로만 동작) ───────── */
+const SUPABASE_URL = "";
+const SUPABASE_ANON_KEY = "";
+
+/* ───────── 내용 ───────── */
+const PIN = [
+  "아침 루틴 확실히 잡기 (학교 가는 걸 좋게 해줄)",
+  "먹는 걸 진짜 좋아하니 그걸 이용하기",
+  "인간에 대한 관심 자체를 꺼버리기 — 삭발한 걸 생각하며",
+  "수시로 생기는 일정은 메모장에 리스트화"
+];
+// 요일: 0=일 … 6=토 / 시간은 분 단위 [시작, 끝)
+const EVENT = { days:[1], r:[[9*60,12*60],[22*60,23*60+30]],
+  text:["1인미디어 동석 / 1인미디어 요약","출퇴근 누르기 — 실수했으면 엑셀에 수정"] };
+const SPECIAL = { r:[[8*60,23*60]], title:"[맵소사 근무 중]",
+  text:["사업은 주가 돼서 무엇보다 우선적으로 진행하기","ex. 수업시간에 전화오면 받는 거고, 할 일 있으면 수업 중에라도 하는 것"] };
+
+const ROUTINE = [
+  ["6시에 무조건 일어나기"],
+  ["일어나자마자 콜드 워터 마시고 콜드 샤워","+ 세안, 양치"],
+  ["원하는 거 뭐든지 먹기","특히 어젯밤에 생각하던 것"],
+  ["옵시디언 체크해서 오늘 할 일 리스트화하기"],
+  ["운동 준비하기","수건, 글러브, 장갑, 마우스피스, 운동복 / 몬스터, 에너지바, 물"],
+  ["깔끔하게 학교 갈 준비하기"],
+  ["노트북 + 충전기 챙기기","사업, 과제, 학습을 위해"],
+  ["아이스 아메리카노 마시며 카페인 충전하기"],
+  ["학교로 이동하기","월·화 8시 / 수·목 10시"]
+];
+const CHOICES = [
+  {t:"수업", s:"시험기간 대비", d:["시험기간때 편하게 공부할 수 있게 준비하기"]},
+  {t:"학교 여가 시간", s:"수업 제외 · 9시/11시 ~ 18:10", d:["구조화해서 복습, 과제, 수업 준비하기","언제든 학업적으로 성장하려고 하기"]},
+  {t:"공강", s:"뉴스레터 · 게임", d:["잉글리시 뉴스레터 하기","스타듀밸리 하기","케이크 하기","슈퍼맨 하기"]}
+];
+const WORKOUT = [["몬스터 마시고 운동 시작하기"],["집에 와서 운동용품이랑 운동복 치우기"],["찝찝하니 씻기"]];
+
+const STEPS = [
+  ...ROUTINE.map(([t,s])=>({g:"아침 루틴",t,s})),
+  {g:"학교", choice:true, t:"지금 뭐 할까?"},
+  ...WORKOUT.map(([t,s])=>({g:"운동",t,s}))
+];
+
+/* ───────── 저장소 ───────── */
+const $ = s => document.querySelector(s);
+const el = (t,c,x) => { const e=document.createElement(t); if(c) e.className=c; if(x!=null) e.textContent=x; return e; };
+const ls = { get:(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch{return d}}, set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}} };
+const sb = (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+const today = new Date().toLocaleDateString("sv-SE");
+const isLocal = m => String(m.id).startsWith("l");
+
+let step = ls.get("step:"+today, 0);
+let detail = null;
+let memos = [];
+
+async function setStep(n){
+  step = Math.max(0, Math.min(STEPS.length, n)); detail = null;
+  ls.set("step:"+today, step); render();
+  if(sb){ try{ const {error}=await sb.from("daily_progress").upsert({day:today, step, updated_at:new Date().toISOString()}); if(error) throw error; }catch(e){ console.error(e); } }
+}
+async function loadStep(){
+  if(!sb) return;
+  try{ const {data,error}=await sb.from("daily_progress").select("step").eq("day",today).maybeSingle(); if(error) throw error;
+    if(data && data.step!==step){ step=data.step; ls.set("step:"+today,step); render(); } }catch(e){ console.error(e); }
+}
+
+/* ───────── 상단 메시지 ───────── */
+function msg(cls,label,lines){
+  const d=el("div","msg "+cls); d.append(el("b",null,label));
+  lines.forEach(l=>d.append(el("div",null,l))); return d;
+}
+function renderTop(){
+  const n=new Date(), dow=n.getDay(), m=n.getHours()*60+n.getMinutes();
+  const on=(days,rs)=>(!days||days.includes(dow))&&rs.some(([a,b])=>m>=a&&m<b);
+  const box=$("#top"); box.replaceChildren();
+  if(on(null,SPECIAL.r)) box.append(msg("hot",SPECIAL.title,SPECIAL.text));
+  if(on(EVENT.days,EVENT.r)) box.append(msg("warn","지금 해야 할 것",EVENT.text));
+  box.append(msg("base","고정 메시지",PIN));
+}
+
+/* ───────── 메인 (하나씩) ───────── */
+function render(){
+  const main=$("#main"); main.replaceChildren();
+  const bar=el("div","bar"); const i=el("i"); i.style.width=(step/STEPS.length*100)+"%"; bar.append(i);
+
+  if(step>=STEPS.length){
+    main.append(bar, el("div","task","오늘 할 일 끝 👏"), el("div","sub","수고했어. 메모장에 남은 일정만 확인하자."));
+    const b=el("button","done-btn","처음부터 다시"); b.onclick=()=>setStep(0); main.append(b);
+    const p=el("button","ghost","← 이전 항목"); p.onclick=()=>setStep(step-1); main.append(p);
+    return;
+  }
+  const cur=STEPS[step];
+  const inGroup=STEPS.filter(x=>x.g===cur.g), idx=inGroup.indexOf(cur)+1;
+  const meta=el("div","meta"); meta.append(el("span",null,cur.g), el("span",null, cur.choice?"선택":`${idx} / ${inGroup.length}`));
+  main.append(bar, meta);
+
+  if(cur.choice){
+    if(detail==null){
+      main.append(el("div","task",cur.t));
+      const box=el("div","choices");
+      CHOICES.forEach((c,k)=>{ const b=el("button","choice"); b.append(el("strong",null,c.t), el("span",null,c.s)); b.onclick=()=>{detail=k;render();}; box.append(b); });
+      main.append(box);
+    }else{
+      const c=CHOICES[detail];
+      main.append(el("div","task",c.t));
+      const d=el("ul","detail"); c.d.forEach(x=>d.append(el("li",null,x))); main.append(d);
+      const row=el("div","row");
+      const back=el("button","ghost-b","돌아가기"); back.onclick=()=>{detail=null;render();};
+      const ok=el("button","done-btn","완료"); ok.onclick=()=>setStep(step+1);
+      row.append(back,ok); main.append(row);
+    }
+  }else{
+    main.append(el("div","task",cur.t));
+    if(cur.s) main.append(el("div","sub",cur.s));
+    const ok=el("button","done-btn","완료"); ok.onclick=()=>setStep(step+1); main.append(ok);
+  }
+  if(step>0 && detail==null){ const p=el("button","ghost","← 이전 항목"); p.onclick=()=>setStep(step-1); main.append(p); }
+}
+
+/* ───────── 메모장 ───────── */
+const saveLocal=()=>ls.set("memos",memos);
+async function loadMemos(){
+  if(sb){ try{ const {data,error}=await sb.from("memos").select("*").order("created_at"); if(error) throw error; memos=data; saveLocal(); renderMemo(); return; }catch(e){ console.error(e); } }
+  memos=ls.get("memos",[]); renderMemo();
+}
+async function addMemo(text){
+  let m={id:"l"+Date.now(),text,done:false};
+  if(sb){ try{ const {data,error}=await sb.from("memos").insert({text}).select().single(); if(error) throw error; m=data; }catch(e){ console.error(e); } }
+  memos.push(m); saveLocal(); renderMemo();
+}
+async function patchMemo(m,p){
+  Object.assign(m,p); saveLocal();
+  if(sb && !isLocal(m)){ try{ const {error}=await sb.from("memos").update(p).eq("id",m.id); if(error) throw error; }catch(e){ console.error(e); } }
+}
+async function delMemo(m){
+  memos=memos.filter(x=>x!==m); saveLocal(); renderMemo();
+  if(sb && !isLocal(m)){ try{ const {error}=await sb.from("memos").delete().eq("id",m.id); if(error) throw error; }catch(e){ console.error(e); } }
+}
+function renderMemo(){
+  const ul=$("#list"); ul.replaceChildren();
+  if(!memos.length){ ul.append(el("li","empty","아직 메모가 없어요. 아래에 일정을 추가하세요.")); return; }
+  memos.forEach(m=>{
+    const li=el("li",m.done?"d":"");
+    const cb=el("input"); cb.type="checkbox"; cb.checked=m.done; cb.setAttribute("aria-label","완료");
+    cb.onchange=()=>{ patchMemo(m,{done:cb.checked}); li.className=cb.checked?"d":""; };
+    const t=el("input"); t.type="text"; t.value=m.text; t.onchange=()=>{ const v=t.value.trim(); if(v) patchMemo(m,{text:v}); else delMemo(m); };
+    const x=el("button","x","×"); x.setAttribute("aria-label","삭제"); x.onclick=()=>delMemo(m);
+    li.append(cb,t,x); ul.append(li);
+  });
+}
+function submitMemo(){ const i=$("#newMemo"), v=i.value.trim(); if(!v) return; i.value=""; addMemo(v); }
+$("#addBtn").onclick=submitMemo;
+$("#newMemo").addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.isComposing) submitMemo(); });
+
+/* ───────── 시작 ───────── */
+renderTop(); render(); renderMemo();
+loadStep(); loadMemos();
+setInterval(renderTop,30000);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) renderTop(); });
+</script>
+</body>
+</html>
