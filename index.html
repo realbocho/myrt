@@ -20,6 +20,8 @@ button{cursor:pointer;border:0;background:none}
 .msg.base div+div{margin-top:1px}
 .msg.warn{background:var(--warnbg);border-color:var(--warn)}
 .msg.warn b{color:var(--warn)}
+.msg.keep{background:var(--ink);border-color:var(--ink);color:#f8f9f5;font-weight:600}
+.msg.keep b{color:#c9cfc4}
 .msg.hot{background:var(--hot);border-color:var(--hot);color:#fff;font-weight:700;font-size:14px;animation:pulse 2.4s ease-in-out infinite}
 .msg.hot b{color:#fff;font-size:15px}
 @keyframes pulse{50%{box-shadow:0 0 0 5px rgba(215,38,61,.25)}}
@@ -79,6 +81,10 @@ const PIN = [
   "인간에 대한 관심 자체를 꺼버리기 — 삭발한 걸 생각하며",
   "수시로 생기는 일정은 메모장에 리스트화"
 ];
+const KEEP = [
+  "문신 다시 하면 허율이랑 손절됨 조심 — 클럽 + 피어싱도",
+  "허율과 약속했듯 난 좋은 사람이 되어야 해. 결혼을 하고 제대로 살기 위해서"
+];
 // 요일: 0=일 … 6=토 / 시간은 분 단위 [시작, 끝)
 const EVENT = { days:[1], r:[[9*60,12*60],[22*60,23*60+30]],
   text:["1인미디어 동석 / 1인미디어 요약","출퇴근 누르기 — 실수했으면 엑셀에 수정"] };
@@ -101,7 +107,7 @@ const CHOICES = [
   {t:"학교 여가 시간", s:"수업 제외 · 9시/11시 ~ 18:10", d:["구조화해서 복습, 과제, 수업 준비하기","언제든 학업적으로 성장하려고 하기"]},
   {t:"공강", s:"뉴스레터 · 게임", d:["잉글리시 뉴스레터 하기","스타듀밸리 하기","케이크 하기","슈퍼맨 하기"]}
 ];
-const WORKOUT = [["몬스터 마시고 운동 시작하기"],["집에 와서 운동용품이랑 운동복 치우기"],["찝찝하니 씻기"]];
+const WORKOUT = [["몬스터 마시고 운동 시작하기"],["집에 와서 운동용품이랑 운동복 치우기"],["찝찝하니 씻기"],["닭가슴살 1팩 먹기","+ 밥"]];
 
 const STEPS = [
   ...ROUTINE.map(([t,s])=>({g:"아침 루틴",t,s})),
@@ -144,6 +150,7 @@ function renderTop(){
   if(on(null,SPECIAL.r)) box.append(msg("hot",SPECIAL.title,SPECIAL.text));
   if(on(EVENT.days,EVENT.r)) box.append(msg("warn","지금 해야 할 것",EVENT.text));
   box.append(msg("base","고정 메시지",PIN));
+  box.append(msg("keep","명심",KEEP));
 }
 
 /* ───────── 메인 (하나씩) ───────── */
